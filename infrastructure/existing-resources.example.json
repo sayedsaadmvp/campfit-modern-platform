@@ -1,0 +1,12 @@
+{
+  "ContainerApps": {
+    "CoreApi": "campfit-core-api",
+    "AdventureApi": "campfit-adventure",
+    "MobileBff": "campfit-bff-mobile",
+    "Analytics": "analytics-read-service"
+  },
+  "ManagedIdentityRoles": [
+    "AcrPull",
+    "Key Vault Secrets User"
+  ]
+}

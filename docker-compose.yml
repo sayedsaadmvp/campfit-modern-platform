@@ -1,0 +1,115 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: campfit-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERPASSWORD:-Test123}
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - campfit-postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_SUPERUSER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - campfit-network
+
+  campfit-core-api:
+    build:
+      context: ./services/campfit-core-api
+    environment:
+      APP_ENV: local
+      ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      CoreDatabase__Host: postgres
+      CoreDatabase__Port: 5432
+      CoreDatabase__Database: ${CORE_DB_NAME:-campfit_core}
+      CoreDatabase__Username: ${CORE_DB_USER:-core_user}
+      CoreDatabase__Password: ${CORE_DB_PASSWORD:-Test123}
+      Firebase__ProjectId: ${FIREBASE_PROJECT_ID:-local-dev-project}
+    ports:
+      - "7001:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - campfit-network
+
+  campfit-adventure:
+    build:
+      context: ./services/campfit-adventure
+    environment:
+      APP_ENV: local
+      ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      AdventureDatabase__Host: postgres
+      AdventureDatabase__Port: 5432
+      AdventureDatabase__Database: ${ADVENTURE_DB_NAME:-campfit_adventure}
+      AdventureDatabase__Username: ${ADVENTURE_DB_USER:-adventure_user}
+      AdventureDatabase__Password: ${ADVENTURE_DB_PASSWORD:-Test123}
+      Firebase__ProjectId: ${FIREBASE_PROJECT_ID:-local-dev-project}
+    ports:
+      - "7002:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - campfit-network
+
+  analytics-read-service:
+    build:
+      context: ./services/analytics-read-service
+    environment:
+      APP_ENV: local
+      ENVIRONMENT: local
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${ANALYTICS_DB_NAME:-campfit_analytics}
+      POSTGRES_USER: ${ANALYTICS_DB_USER:-analytics_user}
+      POSTGRES_PASSWORD: ${ANALYTICS_DB_PASSWORD:-Test123}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-local-dev-project}
+    ports:
+      - "7003:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - campfit-network
+
+  campfit-bff-mobile:
+    build:
+      context: ./services/campfit-bff-mobile
+    environment:
+      APP_ENV: local
+      ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      Firebase__ProjectId: ${FIREBASE_PROJECT_ID:-local-dev-project}
+      Services__CoreApi__BaseUrl: http://campfit-core-api:8080
+      Services__AdventureApi__BaseUrl: http://campfit-adventure:8080
+      Services__AnalyticsApi__BaseUrl: http://analytics-read-service:8000
+    ports:
+      - "7000:8080"
+    depends_on:
+      campfit-core-api:
+        condition: service_started
+      campfit-adventure:
+        condition: service_started
+      analytics-read-service:
+        condition: service_started
+    networks:
+      - campfit-network
+
+volumes:
+  campfit-postgres-data:
+
+networks:
+  campfit-network:
+    name: campfit-network

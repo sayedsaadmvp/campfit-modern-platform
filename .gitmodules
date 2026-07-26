@@ -1,0 +1,12 @@
+[submodule "services/analytics-read-service"]
+	path = services/analytics-read-service
+	url = https://github.com/sayedsaadmvp/campfit-analytics.git
+[submodule "services/campfit-core-api"]
+	path = services/campfit-core-api
+	url = https://github.com/sayedsaadmvp/campfit-core-api.git
+[submodule "services/campfit-adventure"]
+	path = services/campfit-adventure
+	url = https://github.com/sayedsaadmvp/campfit-adventure.git
+[submodule "services/campfit-bff-mobile"]
+	path = services/campfit-bff-mobile
+	url = https://github.com/sayedsaadmvp/campfit-bff-mobile.git

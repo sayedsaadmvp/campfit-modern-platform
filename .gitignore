@@ -1,0 +1,10 @@
+bin/
+obj/
+.vs/
+.vscode/
+TestResults/
+.idea/
+**/.env
+**/secrets/
+**/appsettings.Local.json
+docker-data/

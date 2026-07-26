@@ -1,0 +1,17 @@
+{
+  "Azure": {
+    "SubscriptionId": "<subscription-id>",
+    "ResourceGroup": "<resource-group>",
+    "Location": "eastus",
+    "ContainerAppsEnvironment": "<environment-name>",
+    "ContainerRegistryName": "<acr-name>",
+    "ContainerRegistryLoginServer": "<acr-name>.azurecr.io",
+    "KeyVaultName": "<key-vault-name>",
+    "KeyVaultUri": "https://<key-vault-name>.vault.azure.net/",
+    "UserAssignedIdentityName": "<identity-name>",
+    "UserAssignedIdentityClientId": "<client-id>",
+    "UserAssignedIdentityResourceId": "<resource-id>",
+    "PostgresHost": "<server>.postgres.database.azure.com",
+    "PostgresPort": 5432
+  }
+}

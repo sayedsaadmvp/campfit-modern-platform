@@ -1,0 +1,6 @@
+services:
+  campfit-bff-mobile:
+    environment:
+      AllowedCorsOrigins__0: http://localhost:3000
+      AllowedCorsOrigins__1: http://localhost:5173
+      AllowedCorsOrigins__2: http://localhost:7000
