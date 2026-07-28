@@ -1,2 +1,24 @@
 <Solution>
+  <Folder Name="/platform/">
+    <Project Path="platform/CampFit.AppHost/CampFit.AppHost.csproj" />
+  </Folder>
+  <Folder Name="/services/" />
+  <Folder Name="/services/campfit-adventure/">
+    <Project Path="services/campfit-adventure/CampFit.Adventure.Api.csproj" />
+  </Folder>
+  <Folder Name="/services/campfit-adventure/tests/">
+    <Project Path="services/campfit-adventure/tests/CampFit.Adventure.Api.Tests.csproj" />
+  </Folder>
+  <Folder Name="/services/campfit-bff-mobile/">
+    <Project Path="services/campfit-bff-mobile/CampFit.Bff.Mobile.csproj" />
+  </Folder>
+  <Folder Name="/services/campfit-bff-mobile/tests/">
+    <Project Path="services/campfit-bff-mobile/tests/CampFit.Bff.Mobile.Tests.csproj" />
+  </Folder>
+  <Folder Name="/services/campfit-core-api/">
+    <Project Path="services/campfit-core-api/CampFit.Core.Api.csproj" />
+  </Folder>
+  <Folder Name="/services/campfit-core-api/tests/">
+    <Project Path="services/campfit-core-api/tests/CampFit.Core.Api.Tests.csproj" />
+  </Folder>
 </Solution>

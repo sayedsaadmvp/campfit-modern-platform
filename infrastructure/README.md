@@ -1,11 +1,22 @@
-# Infrastructure Notes
+# Infrastructure
 
-This repository assumes Azure production resources already exist. The platform scripts attach Container Apps to:
+`main.bicep` references existing shared Azure resources and manages only:
 
-- an existing Container Apps environment
-- one shared Azure Container Registry
-- one existing Azure Key Vault
-- one existing user-assigned managed identity
-- one existing Azure Database for PostgreSQL Flexible Server
+- Four Azure Container Apps
+- Runtime identity attachments
+- Managed-identity ACR configuration
+- `AcrPull`
+- `Key Vault Secrets User`
+- Ingress, probes, scaling, revisions, and non-secret environment values
 
-The AppHost must not recreate production PostgreSQL. Use `scripts/configure-azure.ps1` for idempotent configuration of non-secret bootstrap settings only.
+It never creates or deletes PostgreSQL, ACR, Key Vault, the Container Apps environment, or the managed identity.
+
+Create an ignored local parameter file:
+
+```powershell
+Copy-Item infrastructure/azure.parameters.example.json infrastructure/azure.parameters.local.json
+./scripts/deploy-platform.ps1 -ParametersFile infrastructure/azure.parameters.local.json -WhatIf
+./scripts/deploy-platform.ps1 -ParametersFile infrastructure/azure.parameters.local.json
+```
+
+All image references must use immutable Git SHA tags. Only the BFF has external ingress.

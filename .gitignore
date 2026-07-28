@@ -7,4 +7,5 @@ TestResults/
 **/.env
 **/secrets/
 **/appsettings.Local.json
+infrastructure/*.local.json
 docker-data/
