@@ -3,7 +3,7 @@
     "CoreApi": "campfit-core-api",
     "AdventureApi": "campfit-adventure",
     "MobileBff": "campfit-bff-mobile",
-    "Analytics": "analytics-read-service"
+    "Analytics": "campfit-analytics"
   },
   "ManagedIdentityRoles": [
     "AcrPull",

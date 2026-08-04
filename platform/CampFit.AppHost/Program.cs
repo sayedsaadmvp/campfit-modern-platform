@@ -62,7 +62,7 @@ if (isLocal)
         .WaitFor(postgres)
         .WithHttpHealthCheck("/health");
 
-    var analytics = builder.AddDockerfile("analytics-read-service", "../../services/analytics-read-service")
+    var analytics = builder.AddDockerfile("campfit-analytics", "../../services/campfit-analytics")
         .WithHttpEndpoint(targetPort: 8000)
         .WithReference(postgres)
         .WithEnvironment("APP_ENV", "local")
@@ -74,7 +74,7 @@ if (isLocal)
         .WithEnvironment("POSTGRES_PASSWORD", "Test123")
         .WithEnvironment("POSTGRES_SSLMODE", "disable")
         .WithEnvironment("APPLICATIONINSIGHTS_CONNECTION_STRING", appInsightsConnectionString ?? string.Empty)
-        .WithEnvironment("OTEL_SERVICE_NAME", "analytics-read-service")
+        .WithEnvironment("OTEL_SERVICE_NAME", "campfit-analytics")
         .WithEnvironment("TELEMETRY_BODY_CAPTURE_ENABLED", "true")
         .WithEnvironment("TELEMETRY_CAPTURE_FULL_BODIES", telemetryCaptureFullBodies)
         .WithEnvironment("TELEMETRY_BODY_PREVIEW_CHARS", telemetryBodyPreviewCharacters)
@@ -128,13 +128,13 @@ else
         .WithEnvironment("Telemetry__BodyCapture__PreviewCharacters", telemetryBodyPreviewCharacters)
         .WithHttpHealthCheck("/health");
 
-    var analytics = builder.AddDockerfile("analytics-read-service", "../../services/analytics-read-service")
+    var analytics = builder.AddDockerfile("campfit-analytics", "../../services/campfit-analytics")
         .WithHttpEndpoint(targetPort: 8000)
         .WithEnvironment("APP_ENV", "production")
         .WithEnvironment("KEY_VAULT_NAME", builder.Configuration["AZURE_KEY_VAULT_NAME"] ?? builder.Configuration["KEY_VAULT_NAME"] ?? string.Empty)
         .WithEnvironment("USER_ASSIGNED_IDENTITY_CLIENT_ID", builder.Configuration["AZURE_USER_ASSIGNED_IDENTITY_CLIENT_ID"] ?? builder.Configuration["USER_ASSIGNED_IDENTITY_CLIENT_ID"] ?? string.Empty)
         .WithEnvironment("APPLICATIONINSIGHTS_CONNECTION_STRING", appInsightsConnectionString ?? string.Empty)
-        .WithEnvironment("OTEL_SERVICE_NAME", "analytics-read-service")
+        .WithEnvironment("OTEL_SERVICE_NAME", "campfit-analytics")
         .WithEnvironment("TELEMETRY_BODY_CAPTURE_ENABLED", "true")
         .WithEnvironment("TELEMETRY_CAPTURE_FULL_BODIES", telemetryCaptureFullBodies)
         .WithEnvironment("TELEMETRY_BODY_PREVIEW_CHARS", telemetryBodyPreviewCharacters)
@@ -152,7 +152,7 @@ else
         .WithEnvironment("Telemetry__BodyCapture__Enabled", "true")
         .WithEnvironment("Telemetry__BodyCapture__CaptureFullBodies", telemetryCaptureFullBodies)
         .WithEnvironment("Telemetry__BodyCapture__PreviewCharacters", telemetryBodyPreviewCharacters)
-        .WithEnvironment("Services__AnalyticsApi__BaseUrl", builder.Configuration["Services__AnalyticsApi__BaseUrl"] ?? "http://analytics-read-service:8000")
+        .WithEnvironment("Services__AnalyticsApi__BaseUrl", builder.Configuration["Services__AnalyticsApi__BaseUrl"] ?? "http://campfit-analytics:8000")
         .WithExternalHttpEndpoints()
         .WithHttpHealthCheck("/health");
 }

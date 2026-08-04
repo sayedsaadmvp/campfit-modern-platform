@@ -21,7 +21,7 @@ Aspire is the local orchestrator and is not deployed as a production service. Az
 | `campfit-bff-mobile` | `campfit-bff-mobile` | External | None |
 | `campfit-core-api` | `campfit-core-api` | Internal by default | `campfit_core` |
 | `campfit-adventure` | `campfit-adventure` | Internal | `campfit_adventure` |
-| `analytics-read-service` | `analytics-read-service` | Internal | Read-only access to `campfit_core` |
+| `campfit-analytics` | `campfit-analytics` | Internal | Read-only access to `campfit_core` |
 
 Analytics views select from Core's `public` tables. Do not create a separate empty `campfit_analytics` database for this deployment.
 
@@ -371,7 +371,7 @@ psql "host=$postgresHost port=5432 dbname=campfit_core user=campfit_core_app ssl
   -c 'CREATE SCHEMA IF NOT EXISTS analytics AUTHORIZATION campfit_core_app;'
 psql "host=$postgresHost port=5432 dbname=campfit_core user=campfit_core_app sslmode=require" `
   -v ON_ERROR_STOP=1 `
-  -f services\analytics-read-service\scripts\sql-views\generated_views.sql
+  -f services\campfit-analytics\scripts\sql-views\generated_views.sql
 ```
 
 Grant Analytics read-only access after the views exist:
@@ -486,12 +486,12 @@ The Container Apps workflow can update only existing apps, while Bicep needs val
 $coreSha = (git -C services\campfit-core-api rev-parse HEAD).Trim()
 $adventureSha = (git -C services\campfit-adventure rev-parse HEAD).Trim()
 $bffSha = (git -C services\campfit-bff-mobile rev-parse HEAD).Trim()
-$analyticsSha = (git -C services\analytics-read-service rev-parse HEAD).Trim()
+$analyticsSha = (git -C services\campfit-analytics rev-parse HEAD).Trim()
 
 az acr build --registry $acrName --image "campfit-core-api:$coreSha" services\campfit-core-api
 az acr build --registry $acrName --image "campfit-adventure:$adventureSha" services\campfit-adventure
 az acr build --registry $acrName --image "campfit-bff-mobile:$bffSha" services\campfit-bff-mobile
-az acr build --registry $acrName --image "analytics-read-service:$analyticsSha" services\analytics-read-service
+az acr build --registry $acrName --image "campfit-analytics:$analyticsSha" services\campfit-analytics
 ```
 
 Verify:
@@ -531,7 +531,7 @@ Populate it with the following structure and the SHA variables from the previous
     "Core": "acrcampfitprodcb5afb7d.azurecr.io/campfit-core-api:<core-sha>",
     "Adventure": "acrcampfitprodcb5afb7d.azurecr.io/campfit-adventure:<adventure-sha>",
     "Bff": "acrcampfitprodcb5afb7d.azurecr.io/campfit-bff-mobile:<bff-sha>",
-    "Analytics": "acrcampfitprodcb5afb7d.azurecr.io/analytics-read-service:<analytics-sha>"
+    "Analytics": "acrcampfitprodcb5afb7d.azurecr.io/campfit-analytics:<analytics-sha>"
   },
   "BffAllowedCorsOrigin": "https://app.campfit.com"
 }
@@ -586,7 +586,7 @@ Check startup logs and Application Insights:
 ```powershell
 az containerapp logs show --resource-group $resourceGroup --name campfit-core-api --tail 100
 az containerapp logs show --resource-group $resourceGroup --name campfit-adventure --tail 100
-az containerapp logs show --resource-group $resourceGroup --name analytics-read-service --tail 100
+az containerapp logs show --resource-group $resourceGroup --name campfit-analytics --tail 100
 az containerapp logs show --resource-group $resourceGroup --name campfit-bff-mobile --tail 100
 ```
 
@@ -708,7 +708,7 @@ Add the service-specific Container App variable:
 gh variable set CONTAINER_APP_NAME --repo sayedsaadmvp/campfit-core-api --env production --body campfit-core-api
 gh variable set CONTAINER_APP_NAME --repo sayedsaadmvp/campfit-adventure --env production --body campfit-adventure
 gh variable set CONTAINER_APP_NAME --repo sayedsaadmvp/campfit-bff-mobile --env production --body campfit-bff-mobile
-gh variable set CONTAINER_APP_NAME --repo sayedsaadmvp/campfit-analytics --env production --body analytics-read-service
+gh variable set CONTAINER_APP_NAME --repo sayedsaadmvp/campfit-analytics --env production --body campfit-analytics
 ```
 
 Required GitHub Actions secrets: **none**. Do not create `AZURE_CREDENTIALS` or an Azure client secret. Database, Firebase, fitness-provider, Stripe, and telemetry values remain in Azure Key Vault.
@@ -766,7 +766,7 @@ After all service merges, update platform submodule pointers:
 
 ```powershell
 Set-Location C:\ssaad\CampFit\Development\campfit-modern-platform
-git add services\campfit-core-api services\campfit-adventure services\analytics-read-service services\campfit-bff-mobile
+git add services\campfit-core-api services\campfit-adventure services\campfit-analytics services\campfit-bff-mobile
 git add AZURE-PRODUCTION-DEPLOYMENT.md infrastructure README.md
 git commit -m 'Document and reference Azure production deployment'
 git push

@@ -21,7 +21,7 @@ param postgresHost string
 param coreAppName string = 'campfit-core-api'
 param adventureAppName string = 'campfit-adventure'
 param bffAppName string = 'campfit-bff-mobile'
-param analyticsAppName string = 'analytics-read-service'
+param analyticsAppName string = 'campfit-analytics'
 
 @description('Capture full redacted text request/response bodies. Keep false for normal production traffic.')
 param telemetryCaptureFullBodies bool = false
@@ -299,14 +299,14 @@ resource analytics 'Microsoft.App/containerApps@2024-03-01' = {
     template: {
       containers: [
         {
-          name: 'analytics-read-service'
+          name: 'campfit-analytics'
           image: analyticsImage
           env: concat(commonEnvironment, [
             {
               name: 'GIT_SHA'
               value: last(split(analyticsImage, ':'))
             }
-            { name: 'OTEL_SERVICE_NAME', value: 'analytics-read-service' }
+            { name: 'OTEL_SERVICE_NAME', value: 'campfit-analytics' }
             { name: 'TELEMETRY_BODY_CAPTURE_ENABLED', value: 'true' }
             { name: 'TELEMETRY_CAPTURE_FULL_BODIES', value: string(telemetryCaptureFullBodies) }
             { name: 'TELEMETRY_BODY_PREVIEW_CHARS', value: string(telemetryBodyPreviewCharacters) }

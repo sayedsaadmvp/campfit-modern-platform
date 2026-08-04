@@ -8,6 +8,6 @@ Internal services:
 
 - `campfit-core-api`
 - `campfit-adventure`
-- `analytics-read-service`
+- `campfit-analytics`
 
 Each service owns its own deployment lifecycle, Dockerfile, workflow, and PostgreSQL database.

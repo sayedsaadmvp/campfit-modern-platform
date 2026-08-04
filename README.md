@@ -24,7 +24,7 @@ Public campfit-bff-mobile
         |
         +--> Internal campfit-core-api ------> campfit_core
         +--> Internal campfit-adventure -----> campfit_adventure
-        +--> Internal analytics-read-service -> campfit_analytics (read-only)
+        +--> Internal campfit-analytics -> campfit_analytics (read-only)
 
 All images --> shared Azure Container Registry
 All services --> existing Azure Container Apps environment
@@ -313,7 +313,7 @@ $tag = git rev-parse HEAD
 az acr build --registry <acr-name> --image "campfit-core-api:$tag" services/campfit-core-api
 az acr build --registry <acr-name> --image "campfit-adventure:$tag" services/campfit-adventure
 az acr build --registry <acr-name> --image "campfit-bff-mobile:$tag" services/campfit-bff-mobile
-az acr build --registry <acr-name> --image "analytics-read-service:$tag" services/analytics-read-service
+az acr build --registry <acr-name> --image "campfit-analytics:$tag" services/campfit-analytics
 ```
 
 5. Copy the parameter example to an ignored local file and fill in resource names and immutable image references:

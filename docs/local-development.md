@@ -92,7 +92,7 @@ dotnet run
 Run Analytics:
 
 ```powershell
-Set-Location services/analytics-read-service
+Set-Location services/campfit-analytics
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt

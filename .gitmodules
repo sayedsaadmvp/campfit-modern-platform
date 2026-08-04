@@ -1,5 +1,5 @@
-[submodule "services/analytics-read-service"]
-	path = services/analytics-read-service
+[submodule "services/campfit-analytics"]
+	path = services/campfit-analytics
 	url = https://github.com/sayedsaadmvp/campfit-analytics.git
 [submodule "services/campfit-core-api"]
 	path = services/campfit-core-api

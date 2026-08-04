@@ -84,7 +84,7 @@ Use these `CONTAINER_APP_NAME` values:
 campfit-core-api
 campfit-adventure
 campfit-bff-mobile
-analytics-read-service
+campfit-analytics
 ```
 
 The deployment OIDC principal needs `AcrPush` and narrowly scoped Container App update permission. No client secret is used.

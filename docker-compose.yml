@@ -87,9 +87,9 @@ services:
     networks:
       - campfit-network
 
-  analytics-read-service:
+  campfit-analytics:
     build:
-      context: ./services/analytics-read-service
+      context: ./services/campfit-analytics
     environment:
       APP_ENV: local
       ENVIRONMENT: local
@@ -101,7 +101,7 @@ services:
       POSTGRES_SSLMODE: disable
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-local-dev-project}
       APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
-      OTEL_SERVICE_NAME: analytics-read-service
+      OTEL_SERVICE_NAME: campfit-analytics
       TELEMETRY_BODY_CAPTURE_ENABLED: ${TELEMETRY_BODY_CAPTURE_ENABLED:-true}
       TELEMETRY_CAPTURE_FULL_BODIES: ${TELEMETRY_CAPTURE_FULL_BODIES:-false}
       TELEMETRY_BODY_PREVIEW_CHARS: ${TELEMETRY_BODY_PREVIEW_CHARS:-200}
@@ -137,7 +137,7 @@ services:
       Telemetry__BodyCapture__FullBodyMaxCharacters: ${TELEMETRY_FULL_BODY_MAX_CHARS:-65536}
       Services__CoreApi__BaseUrl: http://campfit-core-api:8080
       Services__AdventureApi__BaseUrl: http://campfit-adventure:8080
-      Services__AnalyticsApi__BaseUrl: http://analytics-read-service:8000
+      Services__AnalyticsApi__BaseUrl: http://campfit-analytics:8000
     ports:
       - "7000:8080"
     depends_on:
@@ -145,7 +145,7 @@ services:
         condition: service_healthy
       campfit-adventure:
         condition: service_healthy
-      analytics-read-service:
+      campfit-analytics:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/health"]

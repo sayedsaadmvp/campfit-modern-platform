@@ -18,7 +18,7 @@
     "Core": "<acr-name>.azurecr.io/campfit-core-api:<full-git-sha>",
     "Adventure": "<acr-name>.azurecr.io/campfit-adventure:<full-git-sha>",
     "Bff": "<acr-name>.azurecr.io/campfit-bff-mobile:<full-git-sha>",
-    "Analytics": "<acr-name>.azurecr.io/analytics-read-service:<full-git-sha>"
+    "Analytics": "<acr-name>.azurecr.io/campfit-analytics:<full-git-sha>"
   },
   "BffAllowedCorsOrigin": "https://app.campfit.com"
 }

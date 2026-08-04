@@ -2,7 +2,7 @@
 
 Reference material found locally:
 
-- `analytics-read-service`: active FastAPI service with Key Vault and Firebase validation already implemented
+- `campfit-analytics`: active FastAPI service with Key Vault and Firebase validation already implemented
 - `FitnessTrackerService`: legacy .NET service used only as a representative source
 
 Still to migrate later:
