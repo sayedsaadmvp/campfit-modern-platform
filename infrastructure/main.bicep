@@ -23,6 +23,13 @@ param adventureAppName string = 'campfit-adventure'
 param bffAppName string = 'campfit-bff-mobile'
 param analyticsAppName string = 'analytics-read-service'
 
+@description('Capture full redacted text request/response bodies. Keep false for normal production traffic.')
+param telemetryCaptureFullBodies bool = false
+
+@minValue(1)
+@maxValue(4096)
+param telemetryBodyPreviewCharacters int = 200
+
 @description('Immutable, fully qualified image references. Use Git commit SHA tags.')
 param coreImage string
 param adventureImage string
@@ -140,6 +147,10 @@ var analyticsProbes = [
 resource core 'Microsoft.App/containerApps@2024-03-01' = {
   name: coreAppName
   location: location
+  dependsOn: [
+    acrPullRole
+    keyVaultSecretsUserRole
+  ]
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -173,6 +184,11 @@ resource core 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'GIT_SHA'
               value: last(split(coreImage, ':'))
             }
+            { name: 'OTEL_SERVICE_NAME', value: 'campfit-core-api' }
+            { name: 'Telemetry__BodyCapture__Enabled', value: 'true' }
+            { name: 'Telemetry__BodyCapture__CaptureFullBodies', value: string(telemetryCaptureFullBodies) }
+            { name: 'Telemetry__BodyCapture__PreviewCharacters', value: string(telemetryBodyPreviewCharacters) }
+            { name: 'Telemetry__BodyCapture__FullBodyMaxCharacters', value: '65536' }
           ])
           probes: dotnetProbes
           resources: {
@@ -192,6 +208,10 @@ resource core 'Microsoft.App/containerApps@2024-03-01' = {
 resource adventure 'Microsoft.App/containerApps@2024-03-01' = {
   name: adventureAppName
   location: location
+  dependsOn: [
+    acrPullRole
+    keyVaultSecretsUserRole
+  ]
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -225,6 +245,11 @@ resource adventure 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'GIT_SHA'
               value: last(split(adventureImage, ':'))
             }
+            { name: 'OTEL_SERVICE_NAME', value: 'campfit-adventure' }
+            { name: 'Telemetry__BodyCapture__Enabled', value: 'true' }
+            { name: 'Telemetry__BodyCapture__CaptureFullBodies', value: string(telemetryCaptureFullBodies) }
+            { name: 'Telemetry__BodyCapture__PreviewCharacters', value: string(telemetryBodyPreviewCharacters) }
+            { name: 'Telemetry__BodyCapture__FullBodyMaxCharacters', value: '65536' }
           ])
           probes: dotnetProbes
           resources: {
@@ -244,6 +269,10 @@ resource adventure 'Microsoft.App/containerApps@2024-03-01' = {
 resource analytics 'Microsoft.App/containerApps@2024-03-01' = {
   name: analyticsAppName
   location: location
+  dependsOn: [
+    acrPullRole
+    keyVaultSecretsUserRole
+  ]
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -277,6 +306,11 @@ resource analytics 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'GIT_SHA'
               value: last(split(analyticsImage, ':'))
             }
+            { name: 'OTEL_SERVICE_NAME', value: 'analytics-read-service' }
+            { name: 'TELEMETRY_BODY_CAPTURE_ENABLED', value: 'true' }
+            { name: 'TELEMETRY_CAPTURE_FULL_BODIES', value: string(telemetryCaptureFullBodies) }
+            { name: 'TELEMETRY_BODY_PREVIEW_CHARS', value: string(telemetryBodyPreviewCharacters) }
+            { name: 'TELEMETRY_FULL_BODY_MAX_CHARS', value: '65536' }
           ])
           probes: analyticsProbes
           resources: {
@@ -296,6 +330,10 @@ resource analytics 'Microsoft.App/containerApps@2024-03-01' = {
 resource bff 'Microsoft.App/containerApps@2024-03-01' = {
   name: bffAppName
   location: location
+  dependsOn: [
+    acrPullRole
+    keyVaultSecretsUserRole
+  ]
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -345,6 +383,11 @@ resource bff 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'GIT_SHA'
               value: last(split(bffImage, ':'))
             }
+            { name: 'OTEL_SERVICE_NAME', value: 'campfit-bff-mobile' }
+            { name: 'Telemetry__BodyCapture__Enabled', value: 'true' }
+            { name: 'Telemetry__BodyCapture__CaptureFullBodies', value: string(telemetryCaptureFullBodies) }
+            { name: 'Telemetry__BodyCapture__PreviewCharacters', value: string(telemetryBodyPreviewCharacters) }
+            { name: 'Telemetry__BodyCapture__FullBodyMaxCharacters', value: '65536' }
           ])
           probes: dotnetProbes
           resources: {

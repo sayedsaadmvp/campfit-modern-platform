@@ -9,6 +9,7 @@
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.Docker" />
     <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" />
     <!-- Override Aspire's vulnerable transitive MessagePack 2.5 patch. -->
     <PackageReference Include="MessagePack" />
   </ItemGroup>

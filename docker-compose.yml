@@ -33,6 +33,12 @@ services:
       CoreDatabase__Username: ${CORE_DB_USER:-core_user}
       CoreDatabase__Password: ${CORE_DB_PASSWORD:-Test123}
       Firebase__ProjectId: ${FIREBASE_PROJECT_ID:-local-dev-project}
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
+      OTEL_SERVICE_NAME: campfit-core-api
+      Telemetry__BodyCapture__Enabled: ${TELEMETRY_BODY_CAPTURE_ENABLED:-true}
+      Telemetry__BodyCapture__CaptureFullBodies: ${TELEMETRY_CAPTURE_FULL_BODIES:-false}
+      Telemetry__BodyCapture__PreviewCharacters: ${TELEMETRY_BODY_PREVIEW_CHARS:-200}
+      Telemetry__BodyCapture__FullBodyMaxCharacters: ${TELEMETRY_FULL_BODY_MAX_CHARS:-65536}
     ports:
       - "7001:8080"
     depends_on:
@@ -61,6 +67,12 @@ services:
       AdventureDatabase__Username: ${ADVENTURE_DB_USER:-adventure_user}
       AdventureDatabase__Password: ${ADVENTURE_DB_PASSWORD:-Test123}
       Firebase__ProjectId: ${FIREBASE_PROJECT_ID:-local-dev-project}
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
+      OTEL_SERVICE_NAME: campfit-adventure
+      Telemetry__BodyCapture__Enabled: ${TELEMETRY_BODY_CAPTURE_ENABLED:-true}
+      Telemetry__BodyCapture__CaptureFullBodies: ${TELEMETRY_CAPTURE_FULL_BODIES:-false}
+      Telemetry__BodyCapture__PreviewCharacters: ${TELEMETRY_BODY_PREVIEW_CHARS:-200}
+      Telemetry__BodyCapture__FullBodyMaxCharacters: ${TELEMETRY_FULL_BODY_MAX_CHARS:-65536}
     ports:
       - "7002:8080"
     depends_on:
@@ -88,6 +100,12 @@ services:
       POSTGRES_PASSWORD: ${ANALYTICS_DB_PASSWORD:-Test123}
       POSTGRES_SSLMODE: disable
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-local-dev-project}
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
+      OTEL_SERVICE_NAME: analytics-read-service
+      TELEMETRY_BODY_CAPTURE_ENABLED: ${TELEMETRY_BODY_CAPTURE_ENABLED:-true}
+      TELEMETRY_CAPTURE_FULL_BODIES: ${TELEMETRY_CAPTURE_FULL_BODIES:-false}
+      TELEMETRY_BODY_PREVIEW_CHARS: ${TELEMETRY_BODY_PREVIEW_CHARS:-200}
+      TELEMETRY_FULL_BODY_MAX_CHARS: ${TELEMETRY_FULL_BODY_MAX_CHARS:-65536}
     ports:
       - "7003:8000"
     depends_on:
@@ -111,6 +129,12 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       Firebase__ProjectId: ${FIREBASE_PROJECT_ID:-local-dev-project}
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
+      OTEL_SERVICE_NAME: campfit-bff-mobile
+      Telemetry__BodyCapture__Enabled: ${TELEMETRY_BODY_CAPTURE_ENABLED:-true}
+      Telemetry__BodyCapture__CaptureFullBodies: ${TELEMETRY_CAPTURE_FULL_BODIES:-false}
+      Telemetry__BodyCapture__PreviewCharacters: ${TELEMETRY_BODY_PREVIEW_CHARS:-200}
+      Telemetry__BodyCapture__FullBodyMaxCharacters: ${TELEMETRY_FULL_BODY_MAX_CHARS:-65536}
       Services__CoreApi__BaseUrl: http://campfit-core-api:8080
       Services__AdventureApi__BaseUrl: http://campfit-adventure:8080
       Services__AnalyticsApi__BaseUrl: http://analytics-read-service:8000

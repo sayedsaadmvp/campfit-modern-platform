@@ -1,5 +1,7 @@
 # CampFit Modern Platform
 
+For the complete first-production-deployment procedure for subscription `cb5afb7d-c9f1-4c89-a71e-af4d0022d8d2`, see [AZURE-PRODUCTION-DEPLOYMENT.md](AZURE-PRODUCTION-DEPLOYMENT.md).
+
 CampFit is split into four independently deployable services and one orchestration repository:
 
 | Component | Runtime | Local port | Production ingress | Database |
@@ -489,3 +491,39 @@ See `docs/troubleshooting.md` for authentication, Key Vault, ACR, PostgreSQL, an
 - `docs/architecture.md`
 - `docs/repository-strategy.md`
 - `TODO-MIGRATION.md`
+
+
+
+## Requently used commands 
+
+```
+# Local development
+dotnet run --project .\CampFit.AppHost\CampFit.AppHost.csproj
+# or 
+aspire run --project platform/CampFit.AppHost/CampFit.AppHost.csproj
+
+# Azure authentication
+az login
+azd auth login
+
+# Initialize deployment
+azd init
+
+# Create infrastructure and deploy everything
+azd up
+
+# Update infrastructure only
+azd provision
+
+# Build and deploy services only
+azd deploy
+
+# View environment variables
+azd env get-values
+
+# Open Azure resources
+azd monitor
+
+# Tear down development resources
+azd down
+```

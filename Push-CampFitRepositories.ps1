@@ -57,13 +57,13 @@ function Commit-And-Push {
         throw "$Name is in detached HEAD state."
     }
 
-    # if ($currentBranch -ne $TargetBranch) {
-    #     Invoke-Git $RepositoryPath @("checkout", $TargetBranch)
-    # }
+    if ($currentBranch -ne $TargetBranch) {
+        Invoke-Git $RepositoryPath @("checkout", $TargetBranch)
+    }
 
-    # Invoke-Git $RepositoryPath @("pull", "--rebase", "origin", $TargetBranch)
+    Invoke-Git $RepositoryPath @("pull", "--rebase", "origin", $TargetBranch)
 
-    # $status = & git -C $RepositoryPath status --porcelain
+    $status = & git -C $RepositoryPath status --porcelain
 
     if (-not [string]::IsNullOrWhiteSpace(($status -join "`n"))) {
         Invoke-Git $RepositoryPath @("add", "--all")
@@ -96,13 +96,13 @@ try {
         throw "Platform repository is in detached HEAD state."
     }
 
-    # if ($platformBranch -ne $Branch) {
-    #     Invoke-Git $PlatformRoot @("checkout", $Branch)
-    # }
+    if ($platformBranch -ne $Branch) {
+        Invoke-Git $PlatformRoot @("checkout", $Branch)
+    }
 
-    # Invoke-Git $PlatformRoot @("pull", "--rebase", "origin", $Branch)
+    Invoke-Git $PlatformRoot @("pull", "--rebase", "origin", $Branch)
 
-    # $platformStatus = & git -C $PlatformRoot status --porcelain
+    $platformStatus = & git -C $PlatformRoot status --porcelain
 
     if (-not [string]::IsNullOrWhiteSpace(($platformStatus -join "`n"))) {
         Invoke-Git $PlatformRoot @("add", "--all")
