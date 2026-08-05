@@ -9,3 +9,4 @@ TestResults/
 **/appsettings.Local.json
 infrastructure/*.local.json
 docker-data/
+infrastructure/deploy/sql_roles.ps1

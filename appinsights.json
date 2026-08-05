@@ -1,0 +1,8 @@
+﻿{
+    "properties":  {
+                       "WorkspaceResourceId":  "/subscriptions/cb5afb7d-c9f1-4c89-a71e-af4d0022d8d2/resourceGroups/rg-campfit-prod/providers/Microsoft.OperationalInsights/workspaces/log-campfit-prod",
+                       "Application_Type":  "web"
+                   },
+    "location":  "eastus",
+    "kind":  "web"
+}

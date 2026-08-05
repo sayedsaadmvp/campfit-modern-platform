@@ -527,3 +527,14 @@ azd monitor
 # Tear down development resources
 azd down
 ```
+
+
+## Merge All refernces changes 
+```
+Set-Location C:\ssaad\CampFit\Development\campfit-modern-platform
+git add services\campfit-core-api services\campfit-adventure services\campfit-analytics services\campfit-bff-mobile
+git add AZURE-PRODUCTION-DEPLOYMENT.md infrastructure README.md
+git commit -m 'Document and reference Azure production deployment'
+git push
+
+```
