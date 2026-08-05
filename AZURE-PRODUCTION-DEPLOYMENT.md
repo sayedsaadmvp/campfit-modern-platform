@@ -121,7 +121,7 @@ $containerAppsEnvironment = 'cae-campfit-prod'
 $runtimeIdentityName = 'id-campfit-prod'
 $keyVaultName = 'kv-campfit-prod-cb5afb'
 $logAnalyticsName = 'log-campfit-prod'
-$appInsightsName = 'appi-campfit-prod'
+$appInsightsName = 'appinsight-campfit-prod'
 $postgresServerName = 'psql-campfit-prod-cb5afb'
 $postgresHost = "$postgresServerName.postgres.database.azure.com"
 $postgresAdminUser = 'campfitpgadmin'
@@ -164,6 +164,12 @@ $appInsightsConnectionString = az monitor app-insights component show `
   --app $appInsightsName `
   --resource-group $resourceGroup `
   --query connectionString --output tsv
+```
+
+### Application insights 
+Call this script to create the app insights
+```
+C:\ssaad\CampFit\Development\campfit-modern-platform\infrastructure\deploy\add-app-insights.ps1
 ```
 
 Keep `$appInsightsConnectionString` in memory only. Do not write it into a repository file.
@@ -338,9 +344,68 @@ CREATE ROLE campfit_core_app LOGIN PASSWORD '<CORE_PASSWORD>';
 CREATE ROLE campfit_adventure_app LOGIN PASSWORD '<ADVENTURE_PASSWORD>';
 CREATE ROLE campfit_analytics_read LOGIN PASSWORD '<ANALYTICS_PASSWORD>';
 
-GRANT CONNECT ON DATABASE campfit_core TO campfit_analytics_read;
-ALTER DATABASE campfit_core OWNER TO campfit_core_app;
+GRANT CONNECT ON DATABASE fitnesstrackerservice TO campfit_analytics_read;
+ALTER DATABASE fitnesstrackerservice OWNER TO campfit_core_app;
 ALTER DATABASE campfit_adventure OWNER TO campfit_adventure_app;
+
+
+GRANT CONNECT ON DATABASE fitnesstrackerservice TO campfit_core_app;
+GRANT USAGE ON SCHEMA public TO campfit_core_app;
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON TABLE "__EFMigrationsHistory"
+TO campfit_core_app;
+
+GRANT USAGE ON SCHEMA public TO campfit_core_app;
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON ALL TABLES IN SCHEMA public
+TO campfit_core_app;
+
+GRANT USAGE, SELECT
+ON ALL SEQUENCES IN SCHEMA public
+TO campfit_core_app;
+
+--## Grant Access to future tables 
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON TABLES TO campfit_core_app;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+GRANT USAGE, SELECT
+ON SEQUENCES TO campfit_core_app;
+```
+
+### Grant Analytics Role Access
+```
+-- Create the login role
+CREATE ROLE campfit_analytics_read
+LOGIN
+PASSWORD '<ANALYTICS_PASSWORD>';
+
+-- Allow connecting to the database
+GRANT CONNECT ON DATABASE campfit_core TO campfit_analytics_read;
+
+-- Allow using the public schema
+GRANT USAGE ON SCHEMA public TO campfit_analytics_read;
+
+-- Read access to all existing tables and views
+GRANT SELECT ON ALL TABLES IN SCHEMA public
+TO campfit_analytics_read;
+
+-- Automatically grant SELECT on future tables and views
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+GRANT SELECT ON TABLES
+TO campfit_analytics_read;
+
+-- Allow executing all existing functions/procedures
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public
+TO campfit_analytics_read;
+
+-- Automatically grant EXECUTE on future functions/procedures
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+GRANT EXECUTE ON FUNCTIONS
+TO campfit_analytics_read;
 ```
 
 Apply Core and Adventure EF migrations before deploying the APIs:
@@ -506,6 +571,25 @@ Create the ignored local parameter file:
 
 ```powershell
 Copy-Item infrastructure\azure.parameters.example.json infrastructure\azure.parameters.local.json
+```
+
+Required Variables to fill the template 
+```
+
+write-host $subscriptionId 
+write-host $resourceGroup 
+write-host $location
+write-host $acrName 
+write-host $acrLoginServer 
+write-host $containerAppsEnvironment 
+write-host $runtimeIdentityName 
+write-host $keyVaultName 
+write-host $logAnalyticsName
+write-host $appInsightsName 
+write-host $postgresServerName 
+write-host $postgresHost 
+write-host $postgresAdminUser 
+
 ```
 
 Populate it with the following structure and the SHA variables from the previous phase:

@@ -1,24 +1,24 @@
 {
   "Azure": {
-    "SubscriptionId": "<subscription-id>",
-    "ResourceGroup": "<resource-group>",
+    "SubscriptionId": "cb5afb7d-c9f1-4c89-a71e-af4d0022d8d2",
+    "ResourceGroup": "rg-campfit-prod",
     "Location": "eastus",
-    "ContainerAppsEnvironment": "<environment-name>",
-    "ContainerRegistryName": "<acr-name>",
-    "ContainerRegistryLoginServer": "<acr-name>.azurecr.io",
-    "KeyVaultName": "<key-vault-name>",
-    "KeyVaultUri": "https://<key-vault-name>.vault.azure.net/",
-    "UserAssignedIdentityName": "<identity-name>",
-    "UserAssignedIdentityClientId": "<client-id>",
-    "UserAssignedIdentityResourceId": "<resource-id>",
-    "PostgresHost": "<server>.postgres.database.azure.com",
+    "ContainerAppsEnvironment": "cae-campfit-prod",
+    "ContainerRegistryName": "acrcampfitprodcb5afb7d",
+    "ContainerRegistryLoginServer": "acrcampfitprodcb5afb7d.azurecr.io",
+    "KeyVaultName": "kv-campfit-prod-cb5afb",
+    "KeyVaultUri": "https://kv-campfit-prod-cb5afb.vault.azure.net/",
+    "UserAssignedIdentityName": "id-campfit-prod",
+    "UserAssignedIdentityClientId": "edcebb18-581a-45fc-8e61-b37658bab128",
+    "UserAssignedIdentityResourceId": "/subscriptions/cb5afb7d-c9f1-4c89-a71e-af4d0022d8d2/resourceGroups/rg-campfit-prod/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-campfit-prod",
+    "PostgresHost": "psql-campfit-prod.postgres.database.azure.com",
     "PostgresPort": 5432
   },
   "Images": {
-    "Core": "<acr-name>.azurecr.io/campfit-core-api:<full-git-sha>",
-    "Adventure": "<acr-name>.azurecr.io/campfit-adventure:<full-git-sha>",
-    "Bff": "<acr-name>.azurecr.io/campfit-bff-mobile:<full-git-sha>",
-    "Analytics": "<acr-name>.azurecr.io/campfit-analytics:<full-git-sha>"
+    "Core": "acrcampfitprodcb5afb7d.azurecr.io/campfit-core-api:d83f219eb5bc1be18eefbc4e5c8c2a7cd184cd9b",
+    "Adventure": "acrcampfitprodcb5afb7d.azurecr.io/campfit-adventure:ea97340fe78b816fdcfe900ac3a4855197a65e6b",
+    "Bff": "acrcampfitprodcb5afb7d.azurecr.io/campfit-bff-mobile:15b0fb2d098433d1c76862b2eebc72b018bb6029",
+    "Analytics": "acrcampfitprodcb5afb7d.azurecr.io/campfit-analytics:b0ecd375780f77e585607c66c3472e278e7e2126"
   },
   "BffAllowedCorsOrigin": "https://app.campfit.com"
 }
