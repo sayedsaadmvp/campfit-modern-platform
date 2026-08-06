@@ -674,6 +674,15 @@ az containerapp logs show --resource-group $resourceGroup --name campfit-analyti
 az containerapp logs show --resource-group $resourceGroup --name campfit-bff-mobile --tail 100
 ```
 
+Core, Adventure, and Analytics require encrypted PostgreSQL connections in Azure. Bicep configures their production SSL modes explicitly. If these apps were created before that setting was deployed, apply it once to all PostgreSQL-backed Container Apps:
+
+```powershell
+az login
+.\infrastructure\deploy\configure-postgres-ssl.ps1
+```
+
+The script creates a new revision for each database-backed service and prints its health. The BFF is excluded because it has no PostgreSQL connection.
+
 Remove temporary local PostgreSQL access after migrations and views are complete:
 
 ```powershell
@@ -721,22 +730,27 @@ az role assignment create `
   --scope $acrResourceId
 ```
 
-Create one federated credential for each service repository because each workflow uses the GitHub environment named `production`:
+Create one federated credential for each service repository because each workflow uses the GitHub environment named `production`. GitHub repositories created after July 15, 2026 use immutable owner and repository IDs in OIDC subjects. Resolve those IDs through the authenticated GitHub CLI instead of constructing subjects from names alone:
 
 ```powershell
-$repositories = @(
+$repositoryNames = @(
   'campfit-core-api',
   'campfit-adventure',
   'campfit-bff-mobile',
   'campfit-analytics'
 )
 
-foreach ($repository in $repositories) {
+foreach ($repository in $repositoryNames) {
+  $metadata = gh api "repos/sayedsaadmvp/$repository" | ConvertFrom-Json
+  if (-not $metadata.id -or -not $metadata.owner.id) {
+    throw "Could not resolve immutable GitHub IDs for $repository. Run 'gh auth login' and retry."
+  }
+
   $credentialFile = Join-Path $env:TEMP "$repository-oidc.json"
   @{
-    name = "$repository-production"
+    name = "$repository-production-immutable"
     issuer = 'https://token.actions.githubusercontent.com'
-    subject = "repo:sayedsaadmvp/$repository`:environment:production"
+    subject = "repo:$($metadata.owner.login)@$($metadata.owner.id)/$($metadata.name)@$($metadata.id)`:environment:production"
     description = "CampFit production deployment from $repository"
     audiences = @('api://AzureADTokenExchange')
   } | ConvertTo-Json | Set-Content -LiteralPath $credentialFile
@@ -748,6 +762,23 @@ foreach ($repository in $repositories) {
   Remove-Item -LiteralPath $credentialFile
 }
 ```
+
+Verify the registered subjects:
+
+```powershell
+az ad app federated-credential list `
+  --id $githubDeploymentClientId `
+  --query "[].{Name:name,Subject:subject,Issuer:issuer,Audience:audiences[0]}" `
+  --output table
+```
+
+For example, the Core API production workflow currently presents this exact subject:
+
+```text
+repo:sayedsaadmvp@309130955/campfit-core-api@1312084023:environment:production
+```
+
+If `AADSTS700213` reports no matching federated identity record, compare the assertion subject in the error with the `Subject` column above. They must match character for character. Re-run the creation loop to add the immutable credentials; the older name-based credentials can be removed later from **Microsoft Entra ID > App registrations > github-campfit-prod-deployer > Certificates & secrets > Federated credentials**. Do not use interactive `az login` in GitHub Actions.
 
 ## 9. Configure GitHub Actions
 
@@ -910,5 +941,6 @@ Application rollback does not reverse database migrations. Database rollback req
 - [Azure Container Registry RBAC](https://learn.microsoft.com/azure/container-registry/container-registry-rbac-built-in-roles-directory-reference)
 - [Azure Key Vault RBAC](https://learn.microsoft.com/azure/key-vault/general/rbac-guide)
 - [GitHub Actions OIDC with Azure](https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect)
+- [GitHub OIDC immutable subject claims](https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims)
 - [PostgreSQL Flexible Server networking](https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-networking)
 - [Workspace-based Application Insights](https://learn.microsoft.com/azure/azure-monitor/app/create-workspace-resource)

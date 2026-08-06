@@ -9,6 +9,12 @@ foreach ($repository in $repositories) {
   gh api --method PUT "repos/$repository/environments/production"
 }
 
+# Azure validates GitHub's immutable repository subject before workflows can log in.
+& (Join-Path $PSScriptRoot 'github-federation.ps1')
+
+if ($LASTEXITCODE -ne 0) {
+  throw 'GitHub OIDC federation setup failed.'
+}
 
 foreach ($repository in $repositories) {
   gh variable set AZURE_CLIENT_ID --repo $repository --env production --body $githubDeploymentClientId

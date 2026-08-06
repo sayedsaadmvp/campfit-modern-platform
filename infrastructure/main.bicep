@@ -185,6 +185,7 @@ resource core 'Microsoft.App/containerApps@2024-03-01' = {
               value: last(split(coreImage, ':'))
             }
             { name: 'OTEL_SERVICE_NAME', value: 'campfit-core-api' }
+            { name: 'CoreDatabase__SslMode', value: 'Require' }
             { name: 'Telemetry__BodyCapture__Enabled', value: 'true' }
             { name: 'Telemetry__BodyCapture__CaptureFullBodies', value: string(telemetryCaptureFullBodies) }
             { name: 'Telemetry__BodyCapture__PreviewCharacters', value: string(telemetryBodyPreviewCharacters) }
@@ -246,6 +247,7 @@ resource adventure 'Microsoft.App/containerApps@2024-03-01' = {
               value: last(split(adventureImage, ':'))
             }
             { name: 'OTEL_SERVICE_NAME', value: 'campfit-adventure' }
+            { name: 'AdventureDatabase__SslMode', value: 'Require' }
             { name: 'Telemetry__BodyCapture__Enabled', value: 'true' }
             { name: 'Telemetry__BodyCapture__CaptureFullBodies', value: string(telemetryCaptureFullBodies) }
             { name: 'Telemetry__BodyCapture__PreviewCharacters', value: string(telemetryBodyPreviewCharacters) }
@@ -307,6 +309,7 @@ resource analytics 'Microsoft.App/containerApps@2024-03-01' = {
               value: last(split(analyticsImage, ':'))
             }
             { name: 'OTEL_SERVICE_NAME', value: 'campfit-analytics' }
+            { name: 'POSTGRES_SSLMODE', value: 'require' }
             { name: 'TELEMETRY_BODY_CAPTURE_ENABLED', value: 'true' }
             { name: 'TELEMETRY_CAPTURE_FULL_BODIES', value: string(telemetryCaptureFullBodies) }
             { name: 'TELEMETRY_BODY_PREVIEW_CHARS', value: string(telemetryBodyPreviewCharacters) }
