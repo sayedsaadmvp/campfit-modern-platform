@@ -415,7 +415,6 @@ Set-Location services\campfit-core-api
 dotnet tool restore
 $env:CAMPFIT_PROD_CONNECTION_STRING = "Host=$postgresHost;Port=5432;Database=campfit_core;Username=campfit_core_app;Password=$coreDatabasePassword;SSL Mode=Require"
 .\scripts\Update-Database.ps1 -Context FitnessTrackingContext
-.\scripts\Update-Database.ps1 -Context CoreDbContext
 Remove-Item Env:CAMPFIT_PROD_CONNECTION_STRING
 
 Set-Location ..\campfit-adventure
