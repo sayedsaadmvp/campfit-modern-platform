@@ -15,6 +15,9 @@ param keyVaultName string
 @description('Name of the existing user-assigned managed identity.')
 param userAssignedIdentityName string
 
+@description('Name of the existing Foundry user-assigned identity used by Analytics.')
+param analyticsFoundryIdentityName string = 'id-campfit-foundry-prod'
+
 @description('Existing production PostgreSQL Flexible Server host name.')
 param postgresHost string
 
@@ -39,11 +42,25 @@ param analyticsImage string
 @description('Allowed browser origin for the public BFF. Native mobile clients are not governed by browser CORS.')
 param bffAllowedCorsOrigin string = 'https://app.campfit.com'
 
+@description('Minimum replicas for Adventure and Analytics. These non-entry-point services may scale to zero.')
 @minValue(0)
-param minReplicas int = 1
+param minReplicas int = 0
+
+@description('Minimum replicas for Core API. Keep at least one warm for database-backed requests and background processing.')
+@minValue(0)
+param coreMinReplicas int = 1
+
+@description('Minimum replicas for the public mobile BFF. Keep at least one warm to avoid user-facing cold starts.')
+@minValue(0)
+param bffMinReplicas int = 1
 
 @minValue(1)
 param maxReplicas int = 3
+
+@description('Azure Container Apps health-probe interval. The platform maximum is 240 seconds.')
+@minValue(1)
+@maxValue(240)
+param healthProbePeriodSeconds int = 240
 
 resource environment 'Microsoft.App/managedEnvironments@2024-03-01' existing = {
   name: containerAppsEnvironmentName
@@ -59,6 +76,10 @@ resource vault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
 
 resource runtimeIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
   name: userAssignedIdentityName
+}
+
+resource analyticsFoundryIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
+  name: analyticsFoundryIdentityName
 }
 
 var keyVaultUri = vault.properties.vaultUri
@@ -108,7 +129,7 @@ var dotnetProbes = [
       scheme: 'HTTP'
     }
     initialDelaySeconds: 10
-    periodSeconds: 20
+    periodSeconds: healthProbePeriodSeconds
   }
   {
     type: 'Readiness'
@@ -118,7 +139,8 @@ var dotnetProbes = [
       scheme: 'HTTP'
     }
     initialDelaySeconds: 10
-    periodSeconds: 20
+    periodSeconds: healthProbePeriodSeconds
+    timeoutSeconds: 5
   }
 ]
 var analyticsProbes = [
@@ -130,7 +152,7 @@ var analyticsProbes = [
       scheme: 'HTTP'
     }
     initialDelaySeconds: 10
-    periodSeconds: 20
+    periodSeconds: healthProbePeriodSeconds
   }
   {
     type: 'Readiness'
@@ -140,7 +162,8 @@ var analyticsProbes = [
       scheme: 'HTTP'
     }
     initialDelaySeconds: 10
-    periodSeconds: 20
+    periodSeconds: healthProbePeriodSeconds
+    timeoutSeconds: 5
   }
 ]
 
@@ -162,7 +185,7 @@ resource core 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       activeRevisionsMode: 'Single'
       ingress: {
-        external: false
+        external: true
         targetPort: 8080
         transport: 'auto'
         allowInsecure: false
@@ -199,7 +222,7 @@ resource core 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: minReplicas
+        minReplicas: coreMinReplicas
         maxReplicas: maxReplicas
       }
     }
@@ -279,6 +302,7 @@ resource analytics 'Microsoft.App/containerApps@2024-03-01' = {
     type: 'UserAssigned'
     userAssignedIdentities: {
       '${runtimeIdentityId}': {}
+      '${analyticsFoundryIdentity.id}': {}
     }
   }
   properties: {
@@ -314,6 +338,25 @@ resource analytics 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'TELEMETRY_CAPTURE_FULL_BODIES', value: string(telemetryCaptureFullBodies) }
             { name: 'TELEMETRY_BODY_PREVIEW_CHARS', value: string(telemetryBodyPreviewCharacters) }
             { name: 'TELEMETRY_FULL_BODY_MAX_CHARS', value: '65536' }
+            { name: 'APP_PORT', value: '8000' }
+            { name: 'FIREBASE_PROJECT_ID', value: 'campfitnesschallenge' }
+            { name: 'DATABASE_AUTH_MODE', value: 'password' }
+            { name: 'DATABASE_POOL_SIZE', value: '5' }
+            { name: 'DATABASE_MAX_OVERFLOW', value: '5' }
+            { name: 'FOUNDRY_PROJECT_ENDPOINT', value: 'https://foundry-campfit.services.ai.azure.com/api/projects/campfit-analytics' }
+            { name: 'AI_EXECUTION_MODE', value: 'agent_reference' }
+            { name: 'AI_PRIMARY_PROVIDER', value: 'FOUNDRY' }
+            { name: 'AI_FALLBACK_ENABLED', value: 'true' }
+            { name: 'AI_FALLBACK_PROVIDER', value: 'FOUNDRY' }
+            { name: 'AI_MODEL_TIMEOUT_SECONDS', value: '20' }
+            { name: 'ENABLE_DOCS', value: 'false' }
+            { name: 'LOG_LEVEL', value: 'INFO' }
+            { name: 'TEST_SQL_VIEW_LIMIT', value: '10' }
+            { name: 'AI_PRIMARY_AGENT_NAME', value: 'CampFit-Primary-Analytics' }
+            { name: 'AI_PRIMARY_AGENT_VERSION', value: '13' }
+            { name: 'AI_FALLBACK_AGENT_NAME', value: 'campfit-fallback-analytics' }
+            { name: 'AI_FALLBACK_AGENT_VERSION', value: '9' }
+            { name: 'FOUNDRY_USER_ASSIGNED_IDENTITY_CLIENT_ID', value: analyticsFoundryIdentity.properties.clientId }
           ])
           probes: analyticsProbes
           resources: {
@@ -336,6 +379,9 @@ resource bff 'Microsoft.App/containerApps@2024-03-01' = {
   dependsOn: [
     acrPullRole
     keyVaultSecretsUserRole
+    core
+    adventure
+    analytics
   ]
   identity: {
     type: 'UserAssigned'
@@ -368,15 +414,15 @@ resource bff 'Microsoft.App/containerApps@2024-03-01' = {
           env: concat(commonEnvironment, [
             {
               name: 'Services__CoreApi__BaseUrl'
-              value: 'https://${core.properties.configuration.ingress.fqdn}'
+              value: 'http://${coreAppName}'
             }
             {
               name: 'Services__AdventureApi__BaseUrl'
-              value: 'https://${adventure.properties.configuration.ingress.fqdn}'
+              value: 'http://${adventureAppName}'
             }
             {
               name: 'Services__AnalyticsApi__BaseUrl'
-              value: 'https://${analytics.properties.configuration.ingress.fqdn}'
+              value: 'http://${analyticsAppName}'
             }
             {
               name: 'AllowedCorsOrigins__0'
@@ -400,7 +446,7 @@ resource bff 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: minReplicas
+        minReplicas: bffMinReplicas
         maxReplicas: maxReplicas
       }
     }

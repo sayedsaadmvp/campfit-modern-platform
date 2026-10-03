@@ -943,3 +943,33 @@ Application rollback does not reverse database migrations. Database rollback req
 - [GitHub OIDC immutable subject claims](https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims)
 - [PostgreSQL Flexible Server networking](https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-networking)
 - [Workspace-based Application Insights](https://learn.microsoft.com/azure/azure-monitor/app/create-workspace-resource)
+
+
+
+## Helpful scripts
+
+### Update service replicas 
+```
+$apps = @(
+     'campfit-bff-mobile',
+     'campfit-core-api',
+     'campfit-adventure',
+     'campfit-analytics'
+ )
+
+foreach ($app in $apps) {
+     az containerapp update `
+         --resource-group $resourceGroup `
+         --name $app `
+         --min-replicas 1 `
+         --max-replicas 3
+ }
+
+```
+
+### Switch Github User 
+
+```
+emove-Item Env:\GITHUB_TOKEN -ErrorAction SilentlyContinue
+gh auth logout
+```
