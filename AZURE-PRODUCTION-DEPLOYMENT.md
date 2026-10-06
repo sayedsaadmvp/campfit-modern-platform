@@ -19,11 +19,11 @@ Aspire is the local orchestrator and is not deployed as a production service. Az
 | Container App | Image | Ingress | Database |
 | --- | --- | --- | --- |
 | `campfit-bff-mobile` | `campfit-bff-mobile` | External | None |
-| `campfit-core-api` | `campfit-core-api` | Internal by default | `campfit_core` |
+| `campfit-core-api` | `campfit-core-api` | Internal by default | `fitnesstrackerservice` |
 | `campfit-adventure` | `campfit-adventure` | Internal | `campfit_adventure` |
-| `campfit-analytics` | `campfit-analytics` | Internal | Read-only access to `campfit_core` |
+| `campfit-analytics` | `campfit-analytics` | Internal | Writes `campfit_analytics`; reads Core and Adventure |
 
-Analytics views select from Core's `public` tables. Do not create a separate empty `campfit_analytics` database for this deployment.
+Analytics uses a separate `campfit_analytics` write database and read-only connections to the existing Core and Adventure databases.
 
 The deployment uses:
 
@@ -33,7 +33,7 @@ The deployment uses:
 - One RBAC-enabled Key Vault
 - One Log Analytics workspace
 - One workspace-based Application Insights resource
-- One PostgreSQL Flexible Server with `campfit_core` and `campfit_adventure`
+- One PostgreSQL Flexible Server with `fitnesstrackerservice`, `campfit_adventure`, and `campfit_analytics`
 
 ## Deployment Phases
 
@@ -41,7 +41,7 @@ Run the phases in this order:
 
 1. Validate tools and Azure access.
 2. Create shared Azure resources.
-3. Create databases, roles, schemas, and migrations.
+3. Create databases and roles, apply EF migrations where required, and apply Analytics SQL manually.
 4. Add Key Vault secrets.
 5. Build and push initial images.
 6. Deploy the four Container Apps using Bicep.
@@ -83,7 +83,8 @@ $providers = @(
   'Microsoft.Insights',
   'Microsoft.KeyVault',
   'Microsoft.ManagedIdentity',
-  'Microsoft.OperationalInsights'
+  'Microsoft.OperationalInsights',
+  'Microsoft.Storage'
 )
 
 $providers | ForEach-Object { az provider register --namespace $_ }
@@ -112,6 +113,7 @@ The globally unique resource names below use a suffix derived from the subscript
 
 ```powershell
 $subscriptionId = 'cb5afb7d-c9f1-4c89-a71e-af4d0022d8d2'
+$tenantId = '11423709-e146-43dd-95da-cd5ddd7b359b'
 $resourceGroup = 'rg-campfit-prod'
 $location = 'eastus'
 
@@ -119,13 +121,29 @@ $acrName = 'acrcampfitprodcb5afb7d'
 $acrLoginServer = "$acrName.azurecr.io"
 $containerAppsEnvironment = 'cae-campfit-prod'
 $runtimeIdentityName = 'id-campfit-prod'
+$runtimeIdentityClientId = 'edcebb18-581a-45fc-8e61-b37658bab128'
+$runtimeIdentityPrincipalId = '8f38c873-048b-4622-8967-3ac94aca0d7f'
 $keyVaultName = 'kv-campfit-prod-cb5afb'
 $logAnalyticsName = 'log-campfit-prod'
 $appInsightsName = 'appinsight-campfit-prod'
-$postgresServerName = 'psql-campfit-prod-cb5afb'
+$postgresServerName = 'psql-campfit-prod'
 $postgresHost = "$postgresServerName.postgres.database.azure.com"
 $postgresAdminUser = 'campfitpgadmin'
+$coreDatabaseName = 'fitnesstrackerservice'
+$adventureDatabaseName = 'campfit_adventure'
+$analyticsDatabaseName = 'campfit_analytics'
+$analyticsRuntimeRole = 'campfit_analytics_app'
+
+$githubDeploymentAppName = 'github-campfit-prod-deployer'
+$githubDeploymentClientId = 'b0cae329-2ddc-4776-a3ab-6fa59f4ae312'
+$bffFqdn = 'campfit-bff-mobile.whiteriver-e19ed6bb.eastus.azurecontainerapps.io'
+
+$storageAccountName = 'stcampfitprodcb5afb7d'
+$feedQueueName = 'campfit-feed-events'
+$feedSnapshotContainerName = 'campfit-feed-snapshots'
 ```
+
+The same non-secret values are available from `infrastructure/deploy/campfit-production.variables.ps1`. Secret values from the exported PowerShell session are intentionally not stored in either document or script.
 
 ## 3. Create Shared Azure Resources
 
@@ -310,143 +328,119 @@ Temporarily allow only your current public IPv4 for database setup:
   -RuleName campfit-initial-deployment
 ```
 
-Create only the two databases:
+Create or verify all three service databases:
 
 ```powershell
 .\scripts\configure-production-databases.ps1 `
   -ResourceGroup $resourceGroup `
   -ServerName $postgresServerName `
-  -DatabaseNames @('campfit_core', 'campfit_adventure') `
+  -DatabaseNames @($coreDatabaseName, $adventureDatabaseName, $analyticsDatabaseName) `
   -WhatIf
 
 .\scripts\configure-production-databases.ps1 `
   -ResourceGroup $resourceGroup `
   -ServerName $postgresServerName `
-  -DatabaseNames @('campfit_core', 'campfit_adventure') `
+  -DatabaseNames @($coreDatabaseName, $adventureDatabaseName, $analyticsDatabaseName) `
   -Confirm
 ```
 
-### Database Roles
+### Database Roles and Schema Deployment
 
-Generate three different strong passwords:
+Use three different strong application passwords. Do not save populated password statements in the repository:
 
 ```powershell
-$coreDatabasePassword = Read-Host 'New campfit_core application password'
-$adventureDatabasePassword = Read-Host 'New campfit_adventure application password'
-$analyticsDatabasePassword = Read-Host 'New analytics read-only password'
-$env:PGPASSWORD = $postgresAdminPassword
+$coreDatabasePassword = Read-Host 'Core application password'
+$adventureDatabasePassword = Read-Host 'Adventure application password'
+$analyticsDatabasePassword = Read-Host 'Analytics application password'
 ```
 
-Use `psql` or pgAdmin Query Tool as `$postgresAdminUser`. Replace the three password placeholders below before executing and do not save the populated SQL in the repository:
+As `$postgresAdminUser`, create or verify these login roles:
 
 ```sql
 CREATE ROLE campfit_core_app LOGIN PASSWORD '<CORE_PASSWORD>';
 CREATE ROLE campfit_adventure_app LOGIN PASSWORD '<ADVENTURE_PASSWORD>';
-CREATE ROLE campfit_analytics_read LOGIN PASSWORD '<ANALYTICS_PASSWORD>';
+CREATE ROLE campfit_analytics_app LOGIN PASSWORD '<ANALYTICS_PASSWORD>';
+```
 
-GRANT CONNECT ON DATABASE fitnesstrackerservice TO campfit_analytics_read;
-ALTER DATABASE fitnesstrackerservice OWNER TO campfit_core_app;
-ALTER DATABASE campfit_adventure OWNER TO campfit_adventure_app;
+If a role already exists, use `ALTER ROLE <role> PASSWORD '<PASSWORD>'` instead of creating it again.
 
+Grant each application its owned database access. Analytics receives read-only access to Core and Adventure and write access only to `campfit_analytics`:
 
+```sql
 GRANT CONNECT ON DATABASE fitnesstrackerservice TO campfit_core_app;
-GRANT USAGE ON SCHEMA public TO campfit_core_app;
+GRANT CONNECT ON DATABASE fitnesstrackerservice TO campfit_analytics_app;
 
-GRANT SELECT, INSERT, UPDATE, DELETE
-ON TABLE "__EFMigrationsHistory"
-TO campfit_core_app;
+GRANT CONNECT ON DATABASE campfit_adventure TO campfit_adventure_app;
+GRANT CONNECT ON DATABASE campfit_adventure TO campfit_analytics_app;
 
-GRANT USAGE ON SCHEMA public TO campfit_core_app;
-
-GRANT SELECT, INSERT, UPDATE, DELETE
-ON ALL TABLES IN SCHEMA public
-TO campfit_core_app;
-
-GRANT USAGE, SELECT
-ON ALL SEQUENCES IN SCHEMA public
-TO campfit_core_app;
-
---## Grant Access to future tables 
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-GRANT SELECT, INSERT, UPDATE, DELETE
-ON TABLES TO campfit_core_app;
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-GRANT USAGE, SELECT
-ON SEQUENCES TO campfit_core_app;
+GRANT CONNECT ON DATABASE campfit_analytics TO campfit_analytics_app;
 ```
 
-### Grant Analytics Role Access
-```
--- Create the login role
-CREATE ROLE campfit_analytics_read
-LOGIN
-PASSWORD '<ANALYTICS_PASSWORD>';
+In `fitnesstrackerservice`:
 
--- Allow connecting to the database
-GRANT CONNECT ON DATABASE campfit_core TO campfit_analytics_read;
-
--- Allow using the public schema
-GRANT USAGE ON SCHEMA public TO campfit_analytics_read;
-
--- Read access to all existing tables and views
-GRANT SELECT ON ALL TABLES IN SCHEMA public
-TO campfit_analytics_read;
-
--- Automatically grant SELECT on future tables and views
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-GRANT SELECT ON TABLES
-TO campfit_analytics_read;
-
--- Allow executing all existing functions/procedures
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public
-TO campfit_analytics_read;
-
--- Automatically grant EXECUTE on future functions/procedures
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-GRANT EXECUTE ON FUNCTIONS
-TO campfit_analytics_read;
+```sql
+GRANT USAGE ON SCHEMA public TO campfit_core_app, campfit_analytics_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO campfit_core_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO campfit_core_app;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO campfit_analytics_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO campfit_core_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO campfit_core_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO campfit_analytics_app;
 ```
 
-Apply Core and Adventure EF migrations before deploying the APIs:
+In `campfit_adventure`:
+
+```sql
+GRANT USAGE ON SCHEMA public TO campfit_adventure_app, campfit_analytics_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO campfit_adventure_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO campfit_adventure_app;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO campfit_analytics_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO campfit_adventure_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO campfit_adventure_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO campfit_analytics_app;
+```
+
+For a new environment, apply Core and Adventure EF migrations manually after the section 5 Key Vault database secrets exist. The current production Core migration is already deployed, so do not rerun this merely for the Friends Feed rollout:
 
 ```powershell
-Set-Location services\campfit-core-api
-dotnet tool restore
-$env:CAMPFIT_PROD_CONNECTION_STRING = "Host=$postgresHost;Port=5432;Database=campfit_core;Username=campfit_core_app;Password=$coreDatabasePassword;SSL Mode=Require"
-.\scripts\Update-Database.ps1 -Context FitnessTrackingContext
-Remove-Item Env:CAMPFIT_PROD_CONNECTION_STRING
+Set-Location C:\ssaad\CampFit\Development\campfit-modern-platform
 
-Set-Location ..\campfit-adventure
-dotnet tool restore
-$env:CAMPFIT_PROD_CONNECTION_STRING = "Host=$postgresHost;Port=5432;Database=campfit_adventure;Username=campfit_adventure_app;Password=$adventureDatabasePassword;SSL Mode=Require"
-.\scripts\Update-Database.ps1
-Remove-Item Env:CAMPFIT_PROD_CONNECTION_STRING
-
-Set-Location ..\..
+.\services\campfit-core-api\scripts\database-deploy.ps1 -KeyVaultName $keyVaultName
+.\services\campfit-adventure\scripts\database-deploy.ps1 -KeyVaultName $keyVaultName
 ```
 
-Create Analytics views in `campfit_core` after Core migrations:
+Create or refresh the Core-owned Analytics read views after Core schema changes:
 
 ```powershell
 $env:PGPASSWORD = $coreDatabasePassword
-psql "host=$postgresHost port=5432 dbname=campfit_core user=campfit_core_app sslmode=require" `
+psql "host=$postgresHost port=5432 dbname=$coreDatabaseName user=campfit_core_app sslmode=require" `
   -v ON_ERROR_STOP=1 `
   -c 'CREATE SCHEMA IF NOT EXISTS analytics AUTHORIZATION campfit_core_app;'
-psql "host=$postgresHost port=5432 dbname=campfit_core user=campfit_core_app sslmode=require" `
+psql "host=$postgresHost port=5432 dbname=$coreDatabaseName user=campfit_core_app sslmode=require" `
   -v ON_ERROR_STOP=1 `
   -f services\campfit-analytics\scripts\sql-views\generated_views.sql
-```
-
-Grant Analytics read-only access after the views exist:
-
-```powershell
-$env:PGPASSWORD = $coreDatabasePassword
-psql "host=$postgresHost port=5432 dbname=campfit_core user=campfit_core_app sslmode=require" -v ON_ERROR_STOP=1 -c 'GRANT USAGE ON SCHEMA analytics TO campfit_analytics_read;'
-psql "host=$postgresHost port=5432 dbname=campfit_core user=campfit_core_app sslmode=require" -v ON_ERROR_STOP=1 -c 'GRANT SELECT ON ALL TABLES IN SCHEMA analytics TO campfit_analytics_read;'
-psql "host=$postgresHost port=5432 dbname=campfit_core user=campfit_core_app sslmode=require" -v ON_ERROR_STOP=1 -c 'ALTER DEFAULT PRIVILEGES IN SCHEMA analytics GRANT SELECT ON TABLES TO campfit_analytics_read;'
 Remove-Item Env:PGPASSWORD
 ```
+
+Apply Analytics-owned tables directly with `psql`; no Analytics migration runner or migration connection-string secret is required:
+
+```powershell
+.\services\campfit-analytics\scripts\Deploy-AnalyticsDatabaseManual.ps1
+```
+
+The script requires TLS and validates the administrator credentials before applying any SQL. If the preflight reports `password authentication failed`, reset the server administrator password and rerun it:
+
+```powershell
+$newPostgresAdminPassword = Read-Host 'New PostgreSQL administrator password'
+az postgres flexible-server update `
+  --resource-group $resourceGroup `
+  --name $postgresServerName `
+  --admin-password $newPostgresAdminPassword `
+  --output none
+$newPostgresAdminPassword = $null
+```
+
+This changes only the Flexible Server administrator password. It does not change the application role passwords stored in Key Vault.
 
 ## 5. Add Key Vault Secrets
 
@@ -473,7 +467,7 @@ az keyvault secret set `
 ```powershell
 az keyvault secret set --vault-name $keyVaultName --name CORE-POSTGRES-HOST --value $postgresHost
 az keyvault secret set --vault-name $keyVaultName --name CORE-POSTGRES-PORT --value '5432'
-az keyvault secret set --vault-name $keyVaultName --name CORE-POSTGRES-DATABASE --value 'campfit_core'
+az keyvault secret set --vault-name $keyVaultName --name CORE-POSTGRES-DATABASE --value $coreDatabaseName
 az keyvault secret set --vault-name $keyVaultName --name CORE-POSTGRES-USERNAME --value 'campfit_core_app'
 az keyvault secret set --vault-name $keyVaultName --name CORE-POSTGRES-PASSWORD --value $coreDatabasePassword
 az keyvault secret set --vault-name $keyVaultName --name CORE-APPINSIGHTS-CONNECTION-STRING --value $appInsightsConnectionString
@@ -525,13 +519,15 @@ The BFF uses the shared Firebase secrets already added above and has no database
 
 ### Analytics Secrets
 
-Analytics connects read-only to `campfit_core`:
+Analytics writes its owned tables to `campfit_analytics` and uses read-only access to the Core and Adventure databases:
 
 ```powershell
 az keyvault secret set --vault-name $keyVaultName --name ANALYTICS-POSTGRES-HOST --value $postgresHost
 az keyvault secret set --vault-name $keyVaultName --name ANALYTICS-POSTGRES-PORT --value '5432'
-az keyvault secret set --vault-name $keyVaultName --name ANALYTICS-POSTGRES-DATABASE --value 'campfit_core'
-az keyvault secret set --vault-name $keyVaultName --name ANALYTICS-POSTGRES-USERNAME --value 'campfit_analytics_read'
+az keyvault secret set --vault-name $keyVaultName --name ANALYTICS-POSTGRES-DATABASE --value $analyticsDatabaseName
+az keyvault secret set --vault-name $keyVaultName --name ANALYTICS-CORE-DATABASE --value $coreDatabaseName
+az keyvault secret set --vault-name $keyVaultName --name ANALYTICS-ADVENTURE-DATABASE --value $adventureDatabaseName
+az keyvault secret set --vault-name $keyVaultName --name ANALYTICS-POSTGRES-USERNAME --value $analyticsRuntimeRole
 az keyvault secret set --vault-name $keyVaultName --name ANALYTICS-POSTGRES-PASSWORD --value $analyticsDatabasePassword
 az keyvault secret set --vault-name $keyVaultName --name ANALYTICS-APPINSIGHTS-CONNECTION-STRING --value $appInsightsConnectionString
 ```
@@ -605,9 +601,9 @@ Populate it with the following structure and the SHA variables from the previous
     "KeyVaultName": "kv-campfit-prod-cb5afb",
     "KeyVaultUri": "https://kv-campfit-prod-cb5afb.vault.azure.net/",
     "UserAssignedIdentityName": "id-campfit-prod",
-    "UserAssignedIdentityClientId": "<runtime-identity-client-id>",
-    "UserAssignedIdentityResourceId": "<runtime-identity-resource-id>",
-    "PostgresHost": "psql-campfit-prod-cb5afb.postgres.database.azure.com",
+    "UserAssignedIdentityClientId": "edcebb18-581a-45fc-8e61-b37658bab128",
+    "UserAssignedIdentityResourceId": "/subscriptions/cb5afb7d-c9f1-4c89-a71e-af4d0022d8d2/resourceGroups/rg-campfit-prod/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-campfit-prod",
+    "PostgresHost": "psql-campfit-prod.postgres.database.azure.com",
     "PostgresPort": 5432
   },
   "Images": {
@@ -899,9 +895,9 @@ The platform repository push does not deploy services. Service repository workfl
 - Each repository has a `production` OIDC federated credential.
 - Each repository has the seven required GitHub environment variables.
 - Core and Adventure migrations are applied manually.
-- Analytics views exist in `campfit_core`.
-- Analytics login has read-only grants.
-- Analytics login has no direct grants on Core's `public` tables.
+- Analytics read views exist in `fitnesstrackerservice` where required.
+- Analytics-owned tables and Friends Feed indexes exist in `campfit_analytics`.
+- `campfit_analytics_app` has write access only in `campfit_analytics` and read-only access to Core and Adventure.
 - Temporary local PostgreSQL firewall access is removed.
 - BFF is external; Adventure and Analytics are internal.
 - Core callback ingress has an explicit documented decision.
@@ -934,11 +930,46 @@ az containerapp update `
 
 Application rollback does not reverse database migrations. Database rollback requires a separately reviewed migration or Azure PostgreSQL restore.
 
+## Friends Feed Manual Deployment
+
+Friends Feed storage, RBAC, Analytics SQL, and Container App environment settings are deployed manually with PowerShell. They are intentionally not owned by `main.bicep`.
+
+Load the production names recovered from the existing deployment session:
+
+```powershell
+Set-Location C:\ssaad\CampFit\Development\campfit-modern-platform
+. .\infrastructure\deploy\campfit-production.variables.ps1
+```
+
+The variables use the deployed PostgreSQL server `psql-campfit-prod`, runtime identity `id-campfit-prod`, and the existing subscription/resource group. Secret values from the exported session are not stored in the repository.
+
+Run the deployment in order:
+
+```powershell
+# 1. Create/reuse the storage account, queue, private blob container, and RBAC.
+.\infrastructure\deploy\provision-friends-feed-storage.ps1 -WhatIf
+.\infrastructure\deploy\provision-friends-feed-storage.ps1
+
+# 2. Apply idempotent SQL directly to campfit_analytics and verify it.
+.\services\campfit-analytics\scripts\Deploy-AnalyticsDatabaseManual.ps1
+
+# 3. Update Core, BFF, and Analytics Container App environment variables.
+.\infrastructure\deploy\update-friends-feed-containerapps.ps1 -WhatIf
+.\infrastructure\deploy\update-friends-feed-containerapps.ps1
+```
+
+Core migration `20261004032534_AddCompetitionLeaderboardState` is already deployed and must not be reapplied specifically for this rollout. Adventure has no Friends Feed storage settings. Analytics uses direct `psql` execution and does not require `ANALYTICS-MIGRATION-DATABASE-URL` or the Python migration runner.
+
+The complete RBAC matrix, SQL order, environment variables, verification commands, and rollback guidance are in [FRIENDS-FEED-PRODUCTION-DEPLOYMENT.md](FRIENDS-FEED-PRODUCTION-DEPLOYMENT.md).
+
 ## References
 
 - [Azure Container Apps environments](https://learn.microsoft.com/azure/container-apps/environment)
+- [Azure Container Apps environment variables](https://learn.microsoft.com/azure/container-apps/environment-variables)
 - [Azure Container Registry RBAC](https://learn.microsoft.com/azure/container-registry/container-registry-rbac-built-in-roles-directory-reference)
 - [Azure Key Vault RBAC](https://learn.microsoft.com/azure/key-vault/general/rbac-guide)
+- [Azure Queue Storage Microsoft Entra authorization](https://learn.microsoft.com/azure/storage/queues/authorize-access-azure-active-directory)
+- [Azure Queue Storage CLI authorization](https://learn.microsoft.com/azure/storage/queues/authorize-data-operations-cli)
 - [GitHub Actions OIDC with Azure](https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect)
 - [GitHub OIDC immutable subject claims](https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims)
 - [PostgreSQL Flexible Server networking](https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-networking)
@@ -970,6 +1001,6 @@ foreach ($app in $apps) {
 ### Switch Github User 
 
 ```
-emove-Item Env:\GITHUB_TOKEN -ErrorAction SilentlyContinue
+Remove-Item Env:\GITHUB_TOKEN -ErrorAction SilentlyContinue
 gh auth logout
 ```
